@@ -1,6 +1,7 @@
 package com.nuttawutmalee.RCTBluetoothSerial;
 
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays; // to compare arrays
 import java.util.ArrayList; // to use ArrayList
 import java.util.HashMap;
@@ -73,12 +74,12 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
     /**
      *
      */
-    private HashMap<String, /*byte[]*/ArrayList<byte[]>> mBuffers; // changed to byte[] from StringBuffer
+    private HashMap<String, byte[]> mBuffers;
     /**
      *
      */
-    
-    private HashMap<String, String> mDelimiters;
+
+    private HashMap<String, Byte> mDelimiters;
 
     public RCTBluetoothSerialModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -446,7 +447,8 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
 
         if (id != null) {
             try {
-                byte[] data = Base64.decode(message, Base64.DEFAULT);
+                byte[] data = message.getBytes(); // Base64.decode(message, Base64.DEFAULT);
+                Log.i(TAG, Arrays.toString(data));
                 mBluetoothService.write(id, data);
             } catch (Exception e) {
                 Log.e(TAG, "Error on writeToDevice " + id, e);
@@ -466,35 +468,26 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
             /**
              *
              */
-        ArrayList<byte[]> data = new ArrayList<>();
-            /* String data = ""; */
+        byte[] data = new byte[0];
         /**
          *
          */
         if (mBuffers.containsKey(id)) {
-
-          ArrayList<byte[]> buffer = new ArrayList<>();
-            buffer = mBuffers.get(id);
-            /**
-             * @todo split/clear the buffer
-             */
-            data = (ArrayList) buffer.clone();
-            // ALE int length = buffer.length();
-            // ALE data = buffer.substring(0, length);
-            // ALE buffer.delete(0, length);
-            buffer.removeAll(buffer);
-            mBuffers.put(id, buffer);
-            /**
-             *
-             */
+            byte[]  buffer = mBuffers.get(id);
+            data = buffer.clone();
+            mBuffers.put(id, new byte[0]);
         }
-/**
- *
- */
-        promise.resolve(data);
-        /**
-         *
-         */
+
+        WritableArray completeDataWritableArray = Arguments.createArray();
+        for (int index = 0; index < data.length; index++) {
+            completeDataWritableArray.pushInt(data[index]&0xFF);
+        }
+
+//        WritableMap readParams = Arguments.createMap();
+//        readParams.putString("id", id);
+//        readParams.putArray("data", completeDataWritableArray);
+
+        promise.resolve(completeDataWritableArray);
     }
 
     @ReactMethod
@@ -503,7 +496,7 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
             id = mBluetoothService.getFirstDeviceAddress();
         }
 
-        promise.resolve(readUntil(id));
+        promise.resolve( new String(readUntil(id)) );
     }
 
     @ReactMethod
@@ -515,7 +508,7 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
         if (RCTBluetoothSerialService.debugMode) Log.d(TAG, "Set delimiter of device id " + id + " to " + delimiter);
 
         if (id != null) {
-            mDelimiters.put(id, delimiter);
+            mDelimiters.put(id, (byte) delimiter.charAt(0));
         }
 
         promise.resolve(id);
@@ -528,15 +521,7 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
         }
 
         if (mBuffers.containsKey(id)) {
-          /**
-           *
-           */
-            // StringBuffer buffer = mBuffers.get(id);
-            // buffer.setLength(0);
-           ArrayList<byte[]> buffer = new ArrayList<>(); // set length to 1 as if it would 'buffer.setLength(0);''
-        /**
-         *
-         */
+           byte[] buffer = new byte[0];
             mBuffers.put(id, buffer);
         }
 
@@ -550,30 +535,11 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
         }
 
         int length = 0;
-        /**
-         *
-         */
         if (mBuffers.containsKey(id)) {
-          /**
-           *
-           */
-          // byte[] emptyBuffer = new byte[1024]; // ADD
-          // byte[] buffer = new byte[1024]; // ADD
-          /* ALE StringBuffer */ ArrayList<byte[]> buffer = mBuffers.get(id);
-          // ALE length = buffer.length();
-          length = buffer.size(); // ADD
-          /**
-           *
-           */
+          byte[] buffer = mBuffers.get(id);
+          length = buffer.length ; // ADD
         }
-
-/**
- *
- */
         promise.resolve(length);
-        /**
-         *
-         */
     }
 
     @ReactMethod
@@ -614,18 +580,12 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
         String id = connectedDevice.getAddress();
 
         if (!mDelimiters.containsKey(id)) {
-            mDelimiters.put(id, "");
+            mDelimiters.put(id, (byte) 0);
         }
 
         if (!mBuffers.containsKey(id)) {
-          /**
-           *
-           */
-          ArrayList<byte[]> buffer = new ArrayList<>(); // ADD
-            mBuffers.put(id, buffer /* ALE StringBuffer() */);
-            /**
-             *
-             */
+          byte[] buffer = new byte[0]; // ADD
+            mBuffers.put(id, buffer );
         }
 
         if (mConnectedPromises.containsKey(id)) {
@@ -706,7 +666,7 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
         WritableMap params = Arguments.createMap();
         params.putString("message", e.getMessage());
         /**
-         * 
+         *
          */
         StackTraceElement[] errorStackTraceArray = e.getStackTrace();
         StringBuilder sb = new StringBuilder();
@@ -718,11 +678,11 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
         String stackTrace = joined.substring(0, joined.length()-5);
         params.putString("stackTrace", stackTrace);
         /**
-         * 
+         *
          */
         params.putString("tag", tag);
         /**
-         * 
+         *
          */
         params.putString("deviceId", id);
         sendEvent(ERROR, params);
@@ -733,6 +693,13 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
         onError(e, "", "");
     }
 
+
+    byte[] concatArray(byte[] a, byte[] b){
+        byte[] total = new byte[a.length + b.length];
+        System.arraycopy(a, 0, total, 0, a.length);
+        System.arraycopy(b, 0, total, a.length, b.length);
+        return total;
+    }
     /**
      * Handle read
      *
@@ -741,60 +708,28 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
      */
     void onData(String id, byte[] data) { // fingerprint changed
         if (mBuffers.containsKey(id)) {
-          /**
-           * String[] both = ArrayUtils.addAll(buffer, data);
-           */
-          // byte[] buffer = new byte[1024]; // ADD
-            /* ALE StringBuffer */ ArrayList<byte[]> buffer = mBuffers.get(id);
-            // buffer.append(data);
-            buffer.add(data);
-            mBuffers.put(id, /* ALE buffer */ /** data */ /** mergedData */buffer);
-            /**
-             *
-             */
+            byte[] buffer = mBuffers.get(id);
+            byte[] completeBuffer = concatArray(buffer, data);
+            mBuffers.put(id, completeBuffer );
         }
 
-/*
-        String delimiter = "";
-
-        if (mDelimiters.containsKey(id)) {
-            delimiter = mDelimiters.get(id);
-        }
-*/
-
-/**
- *
- */
-        /* String */byte[] completeData = readUntil(id);
-
-
-
-
-
-        if (completeData.length > 0 /* != null/* && completeData.length() > 0*/) {
-
-                WritableArray completeDataWritableArray = Arguments.createArray();
-                for (int index = 0; index < completeData.length; index++) {
-                  completeDataWritableArray.pushInt(completeData[index]&0xFF);
-                }
-
-            WritableMap readParams = Arguments.createMap();
-            readParams.putString("id", id);
-            readParams.putArray("data", completeDataWritableArray);
-            sendEvent(DEVICE_READ, readParams);
-
-            /*
-                  WritableArray completeDataWritableArray2 = Arguments.createArray();
-                  for (int index = 0; index < completeData.length; index++) {
-                    completeDataWritableArray2.pushInt(completeData[index]&0xFF);
-                  }
-
-            WritableMap dataParams = Arguments.createMap();
-            dataParams.putString("id", id);
-            dataParams.putArray("data", completeDataWritableArray2);
-            sendEvent(DATA_READ, dataParams);
-            */
-        }
+//        byte[] completeData = readUntil(id);
+////        Log.i(TAG, "completeData: "+ new String(completeData));
+//
+//        if (completeData.length > 0) {
+//
+//            WritableArray completeDataWritableArray = Arguments.createArray();
+//            for (int index = 0; index < completeData.length; index++) {
+//              completeDataWritableArray.pushInt(completeData[index]&0xFF);
+//            }
+//
+////            Log.i(TAG, "completeDataWritableArray: "+ completeDataWritableArray.toString());
+//
+//            WritableMap readParams = Arguments.createMap();
+//            readParams.putString("id", id);
+//            readParams.putArray("data", completeDataWritableArray);
+//            sendEvent(DEVICE_READ, readParams);
+//        }
     }
 /**
  *
@@ -807,45 +742,40 @@ public class RCTBluetoothSerialModule extends ReactContextBaseJavaModule
      * @return buffer data from device
      */
     private byte[] readUntil(String id) {
-        // String data = "";
+        byte delimiter = 0;
+        if (mDelimiters.containsKey(id)) {
+            delimiter = mDelimiters.get(id);
+        }
+//        Log.i(TAG, "delimiter: "+delimiter);
         if (mBuffers.containsKey(id)) {
-        /**
-         *
-         */
         // byte[] buffer = new byte[length];
-          /**
-           *
-           */
-          /* ALE StringBuffer */ ArrayList<byte[]> buffer = mBuffers.get(id);
+          byte[] buffer = mBuffers.get(id);
 
-          byte[] data = buffer.remove(0);
-
-          mBuffers.put(id, buffer);
-
-
-
-
-
-
-          return data; // ALE
-/*
-            int index = 5; // buffer.indexOf(delimiter, 0);
-
-            if (index > -1) {
-                data = buffer.substring(0, index + delimiter.length());
-                buffer.delete(0, index + delimiter.length());
-                mBuffers.put(id, buffer);
+            int index=-1;
+//            Log.i(TAG, new String(buffer));
+            for (int i = 0; i < buffer.length; i++) {
+                if(buffer[i]==delimiter){
+                    index=i;
+                    break;
+                }
             }
-*/
-/**
- *
- */
+//            Log.i(TAG, "index: "+index);
+            if(index>=0){
+                byte[] data = Arrays.copyOfRange(buffer, 0, index+1);
+                byte[] leftBuffer = Arrays.copyOfRange(buffer, index+1,buffer.length);
+//                Log.i(TAG, new String(leftBuffer));
+                mBuffers.put(id, leftBuffer);
+
+                return data;
+            }else{
+                byte[] emptyBuffer = new byte[0];
+                return emptyBuffer;
+            }
         }
         else {
-          byte[] emptyBuffer = new byte[1];
+          byte[] emptyBuffer = new byte[0];
           return emptyBuffer;
         }
-
     }
 
     /**

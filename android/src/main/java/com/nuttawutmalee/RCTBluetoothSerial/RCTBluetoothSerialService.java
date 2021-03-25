@@ -263,7 +263,7 @@ try {
      */
     private void connectionFailed(BluetoothDevice device) {
         /**
-         * 
+         *
          */
         String deviceId = "";
         try {
@@ -273,7 +273,7 @@ try {
             Log.e(TAG, "*** connectionFailed - Unable to get deviceId", e);
         }
         /**
-         * 
+         *
          */
         try {
             mModule.onConnectionFailed("Unable to connect to device", device); // Send a failure message with device
@@ -291,7 +291,7 @@ try {
      */
     private void connectionLost(BluetoothDevice device) {
         /**
-         * 
+         *
          */
         String deviceId = "";
         try {
@@ -301,7 +301,7 @@ try {
             Log.e(TAG, "*** connectionLost - Unable to get deviceId", e);
         }
         /**
-         * 
+         *
          */
         try {
             mModule.onConnectionLost("Device connection was lost", device); // Send a failure message
@@ -352,11 +352,11 @@ try {
         private BluetoothSocket mmSocket;
         private final BluetoothDevice mmDevice;
         /**
-         * 
+         *
          */
         private String deviceId;
         /**
-         * 
+         *
          */
 
         ConnectThread(BluetoothDevice device) {
@@ -368,7 +368,7 @@ try {
              */
             deviceId = mmDevice.getAddress();
             /**
-             * 
+             *
              */
             BluetoothSocket tmp = null;
 
@@ -478,11 +478,11 @@ try {
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
         /**
-         * 
+         *
          */
         private String deviceId;
         /**
-         * 
+         *
          */
 
         ConnectedThread(BluetoothSocket socket, BluetoothDevice device) {
@@ -490,11 +490,11 @@ try {
             mmSocket = socket;
             mmDevice = device;
             /**
-             * 
+             *
              */
             deviceId = mmDevice.getAddress();
             /**
-             * 
+             *
              */
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
@@ -525,27 +525,32 @@ try {
                     /*
                      *
                      */
-// Log.i(TAG, "*** Mac " + id + " *** Bytes " + bytes + " *** " + Arrays.toString(buffer));
+                    byte[] receiverData =  Arrays.copyOfRange(buffer, 0, bytes);
+                    Log.i(TAG, "*** Mac " + id + " *** Bytes " + bytes + " *** " + new String(receiverData, "ISO-8859-1") );
+//                    Log.i(TAG, Arrays.toString(receiverData));
+
+                    mModule.onData(id,  receiverData);
+
                     // int[] intArray = { 7, 9, 5, 1, 3 };
 // System.out.println();
                      //Infobiotech Bluetooth protocol by GIOVANNI
-             int packLength = -1;
-             try{
-                 byte[] packLengthBytes = {buffer[0], buffer[1]};
-                 packLength = (int) ByteBuffer.wrap(packLengthBytes).order(ByteOrder.BIG_ENDIAN).getShort();
-             }catch(Exception e){
-                   Log.e(TAG, "Error parsing packet length in header: " + e.getMessage(), e);
-                   mModule.onError(new Exception("Device "+id+". Error parsing packet length in header: " + e.getMessage()), deviceId, "ConnectedThread.run.catch.01");
-             }
+//             int packLength = -1;
+//             try{
+//                 byte[] packLengthBytes = {buffer[0], buffer[1]};
+//                 packLength = (int) ByteBuffer.wrap(packLengthBytes).order(ByteOrder.BIG_ENDIAN).getShort();
+//             }catch(Exception e){
+//                   Log.e(TAG, "Error parsing packet length in header: " + e.getMessage(), e);
+//                   mModule.onError(new Exception("Device "+id+". Error parsing packet length in header: " + e.getMessage()), deviceId, "ConnectedThread.run.catch.01");
+//             }
              /**
-              * 
+              *
               */
-             if(bytes < packLength){
-                 Log.e(TAG, "data length mismatch bytes = " + bytes + " less than packLength = " + packLength);
-                 mModule.onError(new Exception("Device "+id+". Data length mismatch bytes = " + bytes + " less than packLength = " + packLength), deviceId, "ConnectedThread.run.packLengthCheck");
-                 // byte[] realBuffer1 = new byte[1];
-                 // mModule.onData(id, realBuffer1);
-             }
+//             if(bytes < packLength){
+//                 Log.e(TAG, "data length mismatch bytes = " + bytes + " less than packLength = " + packLength);
+//                 mModule.onError(new Exception("Device "+id+". Data length mismatch bytes = " + bytes + " less than packLength = " + packLength), deviceId, "ConnectedThread.run.packLengthCheck");
+//                 // byte[] realBuffer1 = new byte[1];
+//                 // mModule.onData(id, realBuffer1);
+//             }
              /*
              else if(bytes > packLength){
                  Log.e(TAG, "data length mismatch bytes = " + bytes + "  packLength = " + packLength);
@@ -554,51 +559,51 @@ try {
                  // mModule.onData(id, realBuffer1);
              }
              */
-             else { // >= case
-                 /*
-
-                  */
-                  int shift = 0;
-                    do {
-
-                        byte[] realBuffer = new byte[packLength];
-                        for (int index = 0; index < packLength; index++) {
-                        realBuffer[index] = buffer[index+shift];
-                        }
-                        /*
-
-                            */
-                            //ArrayList<byte[]> messageArrayListItem = new ArrayList<>();
-                            //messageArrayListItem.add(realBuffer);
-                        // String data = new String(buffer, 0, bytes, "ISO-8859-1");
-                        mModule.onData(id, realBuffer/* ALE data */); // Send the new data String to the UI Activity
-
-            shift += packLength;
-            packLength = 0;
-
-             try{
-
-                 byte[] packLengthBytes = {buffer[shift], buffer[shift+1]};
-                 packLength = (int) ByteBuffer.wrap(packLengthBytes).order(ByteOrder.BIG_ENDIAN).getShort();
-
-             }catch(Exception e){
-
-                   Log.e(TAG, "Error parsing leftover packet length in header: " + e.getMessage(), e);
-                   mModule.onError(new Exception("Device "+id+". Error parsing leftover packet length in header: " + e.getMessage()), deviceId, "ConnectedThread.run.catch.02");
-                   
-             }
-
-
-
-                    }while(packLength > 0);
-                 /*
-
-                  */
-
-                  /* 
-
-                  */
-             }
+//             else { // >= case
+//                 /*
+//
+//                  */
+//                  int shift = 0;
+//                    do {
+//
+//                        byte[] realBuffer = new byte[packLength];
+//                        for (int index = 0; index < packLength; index++) {
+//                        realBuffer[index] = buffer[index+shift];
+//                        }
+//                        /*
+//
+//                            */
+//                            //ArrayList<byte[]> messageArrayListItem = new ArrayList<>();
+//                            //messageArrayListItem.add(realBuffer);
+//                        // String data = new String(buffer, 0, bytes, "ISO-8859-1");
+//                        mModule.onData(id, realBuffer/* ALE data */); // Send the new data String to the UI Activity
+//
+//            shift += packLength;
+//            packLength = 0;
+//
+//             try{
+//
+//                 byte[] packLengthBytes = {buffer[shift], buffer[shift+1]};
+//                 packLength = (int) ByteBuffer.wrap(packLengthBytes).order(ByteOrder.BIG_ENDIAN).getShort();
+//
+//             }catch(Exception e){
+//
+//                   Log.e(TAG, "Error parsing leftover packet length in header: " + e.getMessage(), e);
+//                   mModule.onError(new Exception("Device "+id+". Error parsing leftover packet length in header: " + e.getMessage()), deviceId, "ConnectedThread.run.catch.02");
+//
+//             }
+//
+//
+//
+//                    }while(packLength > 0);
+//                 /*
+//
+//                  */
+//
+//                  /*
+//
+//                  */
+//             }
 /*
              int cmd=-1;
              try{
